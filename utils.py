@@ -91,10 +91,10 @@ class IdentitySampler(Sampler):
             batch_idx = np.random.choice(uni_label, batchSize, replace = False)  
             for i in range(batchSize):##i从0到7
                 ####对于某个人的color_pos(即所有图片的序号)，从里面选出4张，有的人可能不够四张
-                print(i)
-                print(len(batch_idx))
-                print(batch_idx[i])
-                print(color_pos[batch_idx[i]])
+                # print(i)
+                # print(len(batch_idx))
+                # print(batch_idx[i])
+                # print(color_pos[batch_idx[i]])
                 sample_color  = np.random.choice(color_pos[batch_idx[i]], num_pos)####这一行有错出界
                 sample_thermal = np.random.choice(thermal_pos[batch_idx[i]], num_pos)
                 

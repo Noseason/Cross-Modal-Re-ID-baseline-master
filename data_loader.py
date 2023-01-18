@@ -238,7 +238,7 @@ class TVPRData11(data.Dataset):##############新的，浪潮用
 
         train_color_image = []
         for i in range(len(color_img_file)):
-            #print(i)
+
             img = Image.open(color_img_file[i])
             #print("third")
             img = img.resize((144, 288), Image.ANTIALIAS)

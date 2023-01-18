@@ -391,7 +391,7 @@ def test(epoch):
 
     start = time.time()
     # compute the similarity
-    ######大概是这个地方算矩阵相乘的时候计算量太大了，杀死了，是不是要减小一下图片数量？图片大小？batchsize？
+    ####大概是这个地方算矩阵相乘的时候计算量太大了，杀死了，是不是要减小一下图片数量？图片大小？batchsize？
     distmat = np.matmul(query_feat, np.transpose(gall_feat))
     distmat_att = np.matmul(query_feat_att, np.transpose(gall_feat_att))
 

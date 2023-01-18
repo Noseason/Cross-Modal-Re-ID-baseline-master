@@ -119,7 +119,7 @@ def process_test_tvpr11(img_dir, trial=1, modal='visible'):
     # for root, dirs, files in os.walk(data_dir):
     #     dirs.sort(key=lambda x: int(x))
     #     for i in range(len(dirs)//2+1, len(dirs)):
-    #         path0 = os.path.join(root, dirs[i])  ####pair1000/12
+    #         path0 = os.path.join(root, dirs[i])  ##pair1000/12
     #         for _, _, files1 in os.walk(path0):
     #             for file in files1:
     #                 if file.endswith("color.png"):
