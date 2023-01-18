@@ -4,6 +4,7 @@ from torch.utils.data.sampler import Sampler
 import sys
 import os.path as osp
 import torch
+from IPython import embed
 
 def load_data(input_data_path ):
     with open(input_data_path) as f:
@@ -20,7 +21,14 @@ def GenIdx( train_color_label, train_thermal_label):
     unique_label_color = np.unique(train_color_label)
     for i in range(len(unique_label_color)):
         tmp_pos = [k for k,v in enumerate(train_color_label) if v==unique_label_color[i]]
+        ##这句什么意思，k和v分别是索引和值
+        ##tmp_pos是[0,1,2,3,4]这几个下标的label都是1
         color_pos.append(tmp_pos)
+
+    print("color_pos:len<4")
+    for i in range(0,len(color_pos)):
+        if len(color_pos[i]) < 4:
+            print(i,color_pos[i])
         
     thermal_pos = []
     unique_label_thermal = np.unique(train_thermal_label)
@@ -64,17 +72,30 @@ class IdentitySampler(Sampler):
             color_pos, thermal_pos: positions of each identity
             batchSize: batch size
     """
-
+###把行人样本均分在每个批次里？？
     def __init__(self, train_color_label, train_thermal_label, color_pos, thermal_pos, num_pos, batchSize, epoch):        
         uni_label = np.unique(train_color_label)
         self.n_classes = len(uni_label)
         
         
-        N = np.maximum(len(train_color_label), len(train_thermal_label)) 
-        for j in range(int(N/(batchSize*num_pos))+1):
+        N = np.maximum(len(train_color_label), len(train_thermal_label))
+        ###N是44876
+        ###color_pos是什么东西,batch_size 默认是8,num_pos默认是4
+
+        #print("embed")
+        #embed()
+
+        ##下面有错会不会是因为tvpr的每个人的图片数量不一样多？好像是
+        for j in range(int(N/(batchSize*num_pos))+1):##一共有N/32批
+            ####从496个label里面随机选出8个不重复的元素
             batch_idx = np.random.choice(uni_label, batchSize, replace = False)  
-            for i in range(batchSize):
-                sample_color  = np.random.choice(color_pos[batch_idx[i]], num_pos)
+            for i in range(batchSize):##i从0到7
+                ####对于某个人的color_pos(即所有图片的序号)，从里面选出4张，有的人可能不够四张
+                print(i)
+                print(len(batch_idx))
+                print(batch_idx[i])
+                print(color_pos[batch_idx[i]])
+                sample_color  = np.random.choice(color_pos[batch_idx[i]], num_pos)####这一行有错出界
                 sample_thermal = np.random.choice(thermal_pos[batch_idx[i]], num_pos)
                 
                 if j ==0 and i==0:

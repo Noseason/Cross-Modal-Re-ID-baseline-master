@@ -105,6 +105,49 @@ def process_test_tvpr(img_dir, trial=1, modal='visible'):
             test_list.append(path)
 
 
-    file_label = [int(s.split('_')[0]) for s in test_list]
+    file_label = [int(s.split('/')[-1].split('_')[0]) for s in test_list]
+
+    return test_list, np.array(file_label)
+
+
+##########浪潮
+def process_test_tvpr11(img_dir, trial=1, modal='visible'):
+    test_list1 = []###color
+    test_list2 = []###depth
+    data_dir = '/data3/QK/REID/small1000'
+
+    # for root, dirs, files in os.walk(data_dir):
+    #     dirs.sort(key=lambda x: int(x))
+    #     for i in range(len(dirs)//2+1, len(dirs)):
+    #         path0 = os.path.join(root, dirs[i])  ####pair1000/12
+    #         for _, _, files1 in os.walk(path0):
+    #             for file in files1:
+    #                 if file.endswith("color.png"):
+    #                     path = os.path.join(path0, file)
+    #                     test_list1.append(path)
+    #                 else:
+    #                     path = os.path.join(path0, file)
+    #                     test_list2.append(path)
+    dirs=[]
+    for dir in os.listdir(data_dir):
+        dirs.append(dir)
+    dirs.sort(key=lambda x: int(x))
+    for i in range(len(dirs)//2+1, len(dirs)):
+        path0 = os.path.join(data_dir, dirs[i])  ####pair1000/12
+        for _, _, files1 in os.walk(path0):
+            for file in files1:
+                if file.endswith("color.png"):
+                    path = os.path.join(path0, file)
+                    test_list1.append(path)
+                else:
+                    path = os.path.join(path0, file)
+                    test_list2.append(path)
+
+    if modal == 'visible':
+        test_list = test_list1
+        file_label = [int(s.split('/')[-2]) for s in test_list1]
+    elif modal == 'depth':
+        test_list = test_list2
+        file_label = [int(s.split('/')[-2]) for s in test_list2]
 
     return test_list, np.array(file_label)

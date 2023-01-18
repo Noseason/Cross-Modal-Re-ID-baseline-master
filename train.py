@@ -10,7 +10,7 @@ from torch.autograd import Variable
 import torch.utils.data as data
 import torchvision
 import torchvision.transforms as transforms
-from data_loader import SYSUData, RegDBData, TestData,TVPRData
+from data_loader import SYSUData, RegDBData, TestData, TVPRData, TVPRData11
 from data_manager import *
 from eval_metrics import eval_sysu, eval_regdb
 from model import embed_net
@@ -50,7 +50,7 @@ parser.add_argument('--method', default='agw', type=str,
 parser.add_argument('--margin', default=0.3, type=float,
                     metavar='margin', help='triplet loss margin')
 parser.add_argument('--num_pos', default=4, type=int,
-                    help='num of pos per identity in each modality')
+                    help='num of pos per identity in each modality')####每个模态里每个人的图片数
 parser.add_argument('--trial', default=1, type=int,
                     metavar='t', help='trial (only for RegDB dataset)')
 parser.add_argument('--seed', default=0, type=int,
@@ -175,20 +175,36 @@ elif dataset == 'regdb':
 
 
 
+# elif dataset == 'tvpr2':
+#     trainset = TVPRData(data_path, args.trial, transform1=transform_train,transform2 = transform_train2)
+#
+#     print("first step ok")
+#
+#     #这边没改名字
+#
+#     color_pos, thermal_pos = GenIdx(trainset.train_color_label, trainset.train_depth_label)
+#     query_img, query_label = process_test_tvpr(data_path, trial=args.trial, modal='visible')
+#     gall_img, gall_label = process_test_tvpr(data_path, trial=args.trial, modal='depth')
+#
+#     print("second step ok")
+
+
+#####浪潮
 elif dataset == 'tvpr2':
-    trainset = TVPRData(data_path, args.trial, transform1=transform_train,transform2 = transform_train2)
-    #这边没改名字
+    trainset = TVPRData11(data_path, args.trial, transform1=transform_train,transform2 = transform_train2)
+    print("first step")
     color_pos, thermal_pos = GenIdx(trainset.train_color_label, trainset.train_depth_label)
-    query_img, query_label = process_test_tvpr(data_path, trial=args.trial, modal='visible')
-    gall_img, gall_label = process_test_tvpr(data_path, trial=args.trial, modal='depth')
+    query_img, query_label = process_test_tvpr11(data_path, trial=args.trial, modal='visible')
+    gall_img, gall_label = process_test_tvpr11(data_path, trial=args.trial, modal='depth')
+    print("second step")
 
 gallset = TestData(gall_img, gall_label, transform=transform_test2, img_size=(args.img_w, args.img_h))
 queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
-
+print("third step")
 # testing data loader
 gall_loader = data.DataLoader(gallset, batch_size=args.test_batch, shuffle=False, num_workers=args.workers)
 query_loader = data.DataLoader(queryset, batch_size=args.test_batch, shuffle=False, num_workers=args.workers)
-
+print("fourth step")
 n_class = len(np.unique(trainset.train_color_label))
 nquery = len(query_label)
 ngall = len(gall_label)
@@ -198,7 +214,7 @@ print('  ------------------------------')
 print('  subset   | # ids | # images')
 print('  ------------------------------')
 print('  visible  | {:5d} | {:8d}'.format(n_class, len(trainset.train_color_label)))
-print('  thermal  | {:5d} | {:8d}'.format(n_class, len(trainset.train_thermal_label)))
+print('  thermal  | {:5d} | {:8d}'.format(n_class, len(trainset.train_depth_label)))
 print('  ------------------------------')
 print('  query    | {:5d} | {:8d}'.format(len(np.unique(query_label)), nquery))
 print('  gallery  | {:5d} | {:8d}'.format(len(np.unique(gall_label)), ngall))
@@ -375,6 +391,7 @@ def test(epoch):
 
     start = time.time()
     # compute the similarity
+    ######大概是这个地方算矩阵相乘的时候计算量太大了，杀死了，是不是要减小一下图片数量？图片大小？batchsize？
     distmat = np.matmul(query_feat, np.transpose(gall_feat))
     distmat_att = np.matmul(query_feat_att, np.transpose(gall_feat_att))
 
@@ -406,7 +423,7 @@ for epoch in range(start_epoch, 81 - start_epoch):
     print('==> Preparing Data Loader...')
     # identity sampler
     sampler = IdentitySampler(trainset.train_color_label, \
-                              trainset.train_thermal_label, color_pos, thermal_pos, args.num_pos, args.batch_size,
+                              trainset.train_depth_label, color_pos, thermal_pos, args.num_pos, args.batch_size,
                               epoch)
 
     trainset.cIndex = sampler.index1  # color index
