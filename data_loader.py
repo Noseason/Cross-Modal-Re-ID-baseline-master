@@ -158,6 +158,8 @@ class TVPRData(data.Dataset):
     def __getitem__(self, index):
 
         img1, target1 = self.train_color_image[self.cIndex[index]], self.train_color_label[self.cIndex[index]]
+
+
         img2, target2 = self.train_depth_image[self.dIndex[index]], self.train_depth_label[self.dIndex[index]]
 
         img1 = self.transform1(img1)
@@ -170,12 +172,18 @@ class TVPRData(data.Dataset):
 
 class TVPRData11(data.Dataset):##############新的，浪潮用
     ###改成传入两个transform
-    def __init__(self, data_dir, trial, transform1=None,transform2=None, colorIndex=None, depthIndex=None):
+    def __init__(self, data_dir, trial, transform1=None,transform2=None, type = 0,colorIndex=None, depthIndex=None):
         # Load training images (path) and labels
+        ###type 0 ：train    1：gallery  2：query
         #train要大概五百个人，每个人color和depth数量一致，但人和人之间数量不一样
         ###从pair1000直接读取，pair1000/12/123_color.png,123_depth.png
         train_color_list = []###train的彩色图片的路径集合
         train_depth_list = []
+
+        gallery_color_list = []
+        gallery_depth_list = []
+        query_color_list = []
+        query_depth_list = []
 
         data_dir = '/data3/QK/REID/small1000'
 
@@ -216,12 +224,52 @@ class TVPRData11(data.Dataset):##############新的，浪潮用
                     path = os.path.join(path0, file)
                     train_depth_list.append(path)
 
-        #print("len(train_color_list)")
-        #print(len(train_color_list))
+        ###就在这里把query和gallery的一并处理，排完序直接取前面一半后面一半？
+
+        for i in range(len(dirs) // 2 + 1, len(dirs)):
+            # print(i)
+            # print("dirs[i]")
+            # print(dirs[i])
+            path0 = os.path.join(data_dir,dirs[i])####pair1000/12
+            files = []
+            for file in os.listdir(path0):
+                files.append(file)
+            files.sort(key=lambda x: int(x.split('_')[0]))
+            for j in range(0,(len(files)//4) *2):
+                if files[j].endswith("color.png"):
+                    path = os.path.join(path0,files[j])
+                    gallery_color_list.append(path)
+                elif files[j].endswith("depth.png"):
+                    path = os.path.join(path0, files[j])
+                    gallery_depth_list.append(path)
+            for j in range((len(files)//4) *2, len(files)):
+                if files[j].endswith("color.png"):
+                    path = os.path.join(path0,files[j])
+                    query_color_list.append(path)
+                elif files[j].endswith("depth.png"):
+                    path = os.path.join(path0, files[j])
+                    query_depth_list.append(path)
+
+
+
+        print("len(gallery_color_list)")##########这边是0
+        print(len(gallery_color_list))
+        print("len(gallery_depth_list)")  ##########这边是0
+        print(len(gallery_depth_list))
+        print("len(query_color_list)")  ##########这边是0
+        print(len(query_color_list))
+        print("len(query_depth_list)")  ##########这边是0
+        print(len(query_depth_list))
 
         print("first")
         color_img_file, train_color_label = load_data2(train_color_list)
         depth_img_file, train_depth_label = load_data2(train_depth_list)
+
+        color_gal_file, gal_color_label = load_data2(gallery_color_list)
+        depth_gal_file, gal_depth_label = load_data2(gallery_depth_list)
+
+        color_query_file, query_color_label = load_data2(query_color_list)
+        depth_query_file, query_depth_label = load_data2(query_depth_list)
         print("second")
 
         print("train color label 1-10")
@@ -229,12 +277,12 @@ class TVPRData11(data.Dataset):##############新的，浪潮用
             print(train_color_label[i])
         print(train_color_label[100])
 
-        #print(color_img_file)
-        print("len(color_img_file):")
-        print(len(color_img_file))
-        #print(depth_img_file)
-        print("len(depth_img_file):")
-        print(len(depth_img_file))
+        # #print(color_img_file)
+        # print("len(color_gal_file):")
+        # print(len(color_gal_file))
+        # #print(depth_img_file)
+        # print("len(depth_gal_file):")
+        # print(len(depth_gal_file))
 
         train_color_image = []
         for i in range(len(color_img_file)):
@@ -254,14 +302,61 @@ class TVPRData11(data.Dataset):##############新的，浪潮用
             pix_array = np.array(img)
             train_depth_image.append(pix_array)
         train_depth_image = np.array(train_depth_image)
-        print("fourth")
-        # BGR to RGB
-        self.train_color_image = train_color_image
-        self.train_color_label = train_color_label
 
+        #gallery
+        gallery_color_image = []
+        for i in range(len(color_gal_file)):
+            img = Image.open(color_img_file[i])
+            img = img.resize((144, 288), Image.ANTIALIAS)
+            pix_array = np.array(img)
+            gallery_color_image.append(pix_array)
+        gallery_color_image = np.array(gallery_color_image)
+        gallery_depth_image = []
+        for i in range(len(depth_gal_file)):
+            img = Image.open(depth_gal_file[i]).convert('L')
+            img = img.resize((144, 288), Image.ANTIALIAS)
+            pix_array = np.array(img)
+            gallery_depth_image.append(pix_array)
+        gallery_depth_image = np.array(gallery_depth_image)
+
+        #query
+        query_color_image = []
+        for i in range(len(color_query_file)):
+            img = Image.open(color_query_file[i])
+            img = img.resize((144, 288), Image.ANTIALIAS)
+            pix_array = np.array(img)
+            query_color_image.append(pix_array)
+        query_color_image = np.array(query_color_image)
+        query_depth_image = []
+        for i in range(len(depth_query_file)):
+            img = Image.open(depth_query_file[i]).convert('L')
+            img = img.resize((144, 288), Image.ANTIALIAS)
+            pix_array = np.array(img)
+            query_depth_image.append(pix_array)
+        query_depth_image = np.array(query_depth_image)
+
+        print("fourth")
+        if type == 0:
         # BGR to RGB
-        self.train_depth_image = train_depth_image
-        self.train_depth_label = train_depth_label
+            self.train_color_image = train_color_image
+            self.train_color_label = train_color_label
+        # BGR to RGB
+            self.train_depth_image = train_depth_image
+            self.train_depth_label = train_depth_label
+
+        elif type ==1:
+            self.train_color_image = gallery_color_image
+            self.train_color_label = gal_color_label
+            # BGR to RGB
+            self.train_depth_image = gallery_depth_image
+            self.train_depth_label = gal_depth_label
+
+        elif type ==2:
+            self.train_color_image = query_color_image
+            self.train_color_label = query_color_label
+            # BGR to RGB
+            self.train_depth_image = query_depth_image
+            self.train_depth_label = query_depth_label
 
         self.transform1 = transform1
         self.transform2 = transform2
@@ -272,6 +367,8 @@ class TVPRData11(data.Dataset):##############新的，浪潮用
     def __getitem__(self, index):
 
         img1, target1 = self.train_color_image[self.cIndex[index]], self.train_color_label[self.cIndex[index]]
+        # print("index:", index)
+        # print("dIndexlen", len(self.dIndex))
         img2, target2 = self.train_depth_image[self.dIndex[index]], self.train_depth_label[self.dIndex[index]]
 
         img1 = self.transform1(img1)
@@ -344,4 +441,7 @@ def load_data1(data_file_list):
 def load_data2(data_file_list):
     ###pair1000/12/xxx_color.png
     file_label = [int(s.split('/')[-2]) for s in data_file_list]
+    for i in range(0,len(file_label)):
+        if file_label[i] >491:
+            file_label[i] = file_label[i] -492
     return data_file_list, file_label

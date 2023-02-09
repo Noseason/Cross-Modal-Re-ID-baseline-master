@@ -25,7 +25,7 @@ def GenIdx( train_color_label, train_thermal_label):
         ##tmp_pos是[0,1,2,3,4]这几个下标的label都是1
         color_pos.append(tmp_pos)
 
-    print("color_pos:len<4")
+    print("color_pos:len<4")######要去掉图片数小于16的数据
     for i in range(0,len(color_pos)):
         if len(color_pos[i]) < 4:
             print(i,color_pos[i])

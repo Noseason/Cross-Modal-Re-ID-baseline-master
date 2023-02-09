@@ -173,6 +173,7 @@ class embed_net(nn.Module):
         self.bottleneck.bias.requires_grad_(False)  # no shift
 
         self.classifier = nn.Linear(pool_dim, class_num, bias=False)#####输入神经元2048个，输出神经元同行人个数，一共有class_num个值，表示是每个人的概率。
+        self.linear1 = nn.Linear(4096, 2048, bias=False)
 
         self.bottleneck.apply(weights_init_kaiming)
         self.classifier.apply(weights_init_classifier)
@@ -180,62 +181,116 @@ class embed_net(nn.Module):
         self.gm_pool = gm_pool
 
     def forward(self, x1, x2, modal=0):
-        if modal == 0:                  ###使用两个模态融合的特征
-            x1 = self.visible_module(x1)
-            x2 = self.thermal_module(x2)
-            x = torch.cat((x1, x2), 0)
-        elif modal == 1:
-            x = self.visible_module(x1)####只使用rgb单流
-        elif modal == 2:
-            x = self.thermal_module(x2)###只使用红外单流
+        # if modal == 0:                  ###使用两个模态融合的特征
+        #     x1 = self.visible_module(x1)
+        #     x2 = self.thermal_module(x2)
+        #     ###这边改成点积?
+        #
+        #     x = torch.cat((x1, x2), 0)
+        # elif modal == 1:
+        #     x = self.visible_module(x1)####只使用rgb单流
+        # elif modal == 2:
+        #     x = self.thermal_module(x2)###只使用红外单流
+
+        x1 = self.visible_module(x1)
+        x2 = self.thermal_module(x2)
+
 
         # shared block
         if self.non_local == 'on':
+
             NL1_counter = 0
             if len(self.NL_1_idx) == 0: self.NL_1_idx = [-1]
             for i in range(len(self.base_resnet.base.layer1)):
-                x = self.base_resnet.base.layer1[i](x)
+                x1 = self.base_resnet.base.layer1[i](x1)
                 if i == self.NL_1_idx[NL1_counter]:
-                    _, C, H, W = x.shape
-                    x = self.NL_1[NL1_counter](x)
+                    _, C, H, W = x1.shape
+                    x1 = self.NL_1[NL1_counter](x1)
                     NL1_counter += 1
             # Layer 2
             NL2_counter = 0
             if len(self.NL_2_idx) == 0: self.NL_2_idx = [-1]
             for i in range(len(self.base_resnet.base.layer2)):
-                x = self.base_resnet.base.layer2[i](x)
+                x1 = self.base_resnet.base.layer2[i](x1)
                 if i == self.NL_2_idx[NL2_counter]:
-                    _, C, H, W = x.shape
-                    x = self.NL_2[NL2_counter](x)
+                    _, C, H, W = x1.shape
+                    x1 = self.NL_2[NL2_counter](x1)
                     NL2_counter += 1
             # Layer 3
             NL3_counter = 0
             if len(self.NL_3_idx) == 0: self.NL_3_idx = [-1]
             for i in range(len(self.base_resnet.base.layer3)):
-                x = self.base_resnet.base.layer3[i](x)
+                x1 = self.base_resnet.base.layer3[i](x1)
                 if i == self.NL_3_idx[NL3_counter]:
-                    _, C, H, W = x.shape
-                    x = self.NL_3[NL3_counter](x)
+                    _, C, H, W = x1.shape
+                    x1 = self.NL_3[NL3_counter](x1)
                     NL3_counter += 1
             # Layer 4
             NL4_counter = 0
             if len(self.NL_4_idx) == 0: self.NL_4_idx = [-1]
             for i in range(len(self.base_resnet.base.layer4)):
-                x = self.base_resnet.base.layer4[i](x)
+                x1= self.base_resnet.base.layer4[i](x1)
                 if i == self.NL_4_idx[NL4_counter]:
-                    _, C, H, W = x.shape
-                    x = self.NL_4[NL4_counter](x)
+                    _, C, H, W = x1.shape
+                    x1 = self.NL_4[NL4_counter](x1)
                     NL4_counter += 1
-        else:
-            x = self.base_resnet(x)
+
+            ##########depth
+
+            NL1_counter = 0
+            if len(self.NL_1_idx) == 0: self.NL_1_idx = [-1]
+            for i in range(len(self.base_resnet.base.layer1)):
+                x2 = self.base_resnet.base.layer1[i](x2)
+                if i == self.NL_1_idx[NL1_counter]:
+                    _, C, H, W = x2.shape
+                    x2 = self.NL_1[NL1_counter](x2)
+                    NL1_counter += 1
+            # Layer 2
+            NL2_counter = 0
+            if len(self.NL_2_idx) == 0: self.NL_2_idx = [-1]
+            for i in range(len(self.base_resnet.base.layer2)):
+                x2 = self.base_resnet.base.layer2[i](x2)
+                if i == self.NL_2_idx[NL2_counter]:
+                    _, C, H, W = x2.shape
+                    x2 = self.NL_2[NL2_counter](x2)
+                    NL2_counter += 1
+            # Layer 3
+            NL3_counter = 0
+            if len(self.NL_3_idx) == 0: self.NL_3_idx = [-1]
+            for i in range(len(self.base_resnet.base.layer3)):
+                x2 = self.base_resnet.base.layer3[i](x2)
+                if i == self.NL_3_idx[NL3_counter]:
+                    _, C, H, W = x2.shape
+                    x2 = self.NL_3[NL3_counter](x2)
+                    NL3_counter += 1
+            # Layer 4
+            NL4_counter = 0
+            if len(self.NL_4_idx) == 0: self.NL_4_idx = [-1]
+            for i in range(len(self.base_resnet.base.layer4)):
+                x2 = self.base_resnet.base.layer4[i](x2)
+                if i == self.NL_4_idx[NL4_counter]:
+                    _, C, H, W = x2.shape
+                    x2 = self.NL_4[NL4_counter](x2)
+                    NL4_counter += 1
+        # else:
+        #     x = self.base_resnet(x)
+
         if self.gm_pool  == 'on':
-            b, c, h, w = x.shape
-            x = x.view(b, c, -1)
+            b, c, h, w = x1.shape
+            x1 = x1.view(b, c, -1)
             p = 3.0
-            x_pool = (torch.mean(x**p, dim=-1) + 1e-12)**(1/p)
-        else:
-            x_pool = self.avgpool(x)########变成2048*1*1
-            x_pool = x_pool.view(x_pool.size(0), x_pool.size(1))
+            x_pool1 = (torch.mean(x1**p, dim=-1) + 1e-12)**(1/p)
+            b, c, h, w = x2.shape
+            x2 = x2.view(b, c, -1)
+            p = 3.0
+            x_pool2 = (torch.mean(x2 ** p, dim=-1) + 1e-12) ** (1 / p)
+        # else:
+        #     x_pool = self.avgpool(x)########变成2048*1*1
+        #     x_pool = x_pool.view(x_pool.size(0), x_pool.size(1))
+        #x_pool1:tensor(32,2048)
+        x_pool = torch.cat((x_pool1, x_pool2), 1)
+        x_pool = self.linear1(x_pool)
+
 
         feat = self.bottleneck(x_pool)
 

@@ -84,12 +84,12 @@ def eval_sysu(distmat, q_pids, g_pids, q_camids, g_camids, max_rank = 20):
     
     
 def eval_regdb(distmat, q_pids, g_pids, max_rank = 20):
-    num_q, num_g = distmat.shape
-    if num_g < max_rank:
+    num_q, num_g = distmat.shape###query和gallery个数
+    if num_g < max_rank:###如果不够计算rank20
         max_rank = num_g
         print("Note: number of gallery samples is quite small, got {}".format(num_g))
-    indices = np.argsort(distmat, axis=1)
-    matches = (g_pids[indices] == q_pids[:, np.newaxis]).astype(np.int32)
+    indices = np.argsort(distmat, axis=1)###最相近的两个向量排序,由小到大排序获得序号（index）
+    matches = (np.array(g_pids)[indices] == np.array(q_pids)[:, np.newaxis]).astype(np.int32)##gallery和query的匹配
 
     # compute cmc curve for each query
     all_cmc = []
@@ -98,8 +98,8 @@ def eval_regdb(distmat, q_pids, g_pids, max_rank = 20):
     num_valid_q = 0. # number of valid query
     
     # only two cameras
-    q_camids = np.ones(num_q).astype(np.int32)
-    g_camids = 2* np.ones(num_g).astype(np.int32)
+    q_camids = np.ones(num_q).astype(np.int32)####query的camera都是1
+    g_camids = 2* np.ones(num_g).astype(np.int32)####gallery的camera都是2
     
     for q_idx in range(num_q):
         # get query pid and camid
@@ -108,8 +108,9 @@ def eval_regdb(distmat, q_pids, g_pids, max_rank = 20):
 
         # remove gallery samples that have the same pid and camid with query
         #########这边是啥意思，要改吗
+        ###好像没有满足这种条件的。。
         order = indices[q_idx]
-        remove = (g_pids[order] == q_pid) & (g_camids[order] == q_camid)
+        remove = (np.array(g_pids)[order] == q_pid) & (np.array(g_camids)[order] == q_camid)
         keep = np.invert(remove)
 
         # compute cmc curve

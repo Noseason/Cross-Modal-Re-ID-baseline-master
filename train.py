@@ -62,6 +62,8 @@ parser.add_argument('--mode', default='all', type=str, help='all or indoor')
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = "max_split_size_mb:128"
+
 set_seed(args.seed)
 
 dataset = args.dataset
@@ -191,21 +193,27 @@ elif dataset == 'regdb':
 
 #####浪潮
 elif dataset == 'tvpr2':
-    trainset = TVPRData11(data_path, args.trial, transform1=transform_train,transform2 = transform_train2)
+    trainset = TVPRData11(data_path, args.trial, transform1=transform_train,transform2 = transform_train2, type = 0)
     print("first step")
     color_pos, thermal_pos = GenIdx(trainset.train_color_label, trainset.train_depth_label)
-    query_img, query_label = process_test_tvpr11(data_path, trial=args.trial, modal='visible')
-    gall_img, gall_label = process_test_tvpr11(data_path, trial=args.trial, modal='depth')
+    #query_img, query_label = process_test_tvpr11(data_path, trial=args.trial, modal='visible')
+    #gall_img, gall_label = process_test_tvpr11(data_path, trial=args.trial, modal='depth')
     print("second step")
 
-gallset = TestData(gall_img, gall_label, transform=transform_test2, img_size=(args.img_w, args.img_h))
-queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
+#gallset = TestData(gall_img, gall_label, transform=transform_test2, img_size=(args.img_w, args.img_h))
+#queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
+gallset = TVPRData11(data_path, args.trial, transform1=transform_train,transform2 = transform_train2, type = 1)
+queryset = TVPRData11(data_path, args.trial, transform1=transform_train,transform2 = transform_train2, type = 2)
 print("third step")
 # testing data loader
-gall_loader = data.DataLoader(gallset, batch_size=args.test_batch, shuffle=False, num_workers=args.workers)
-query_loader = data.DataLoader(queryset, batch_size=args.test_batch, shuffle=False, num_workers=args.workers)
+# gall_loader = data.DataLoader(gallset, batch_size=args.test_batch, shuffle=False, num_workers=args.workers)
+# query_loader = data.DataLoader(queryset, batch_size=args.test_batch, shuffle=False, num_workers=args.workers)
+color_pos_g, thermal_pos_g = GenIdx(gallset.train_color_label, gallset.train_depth_label)
+color_pos_q, thermal_pos_q = GenIdx(queryset.train_color_label, queryset.train_depth_label)
 print("fourth step")
 n_class = len(np.unique(trainset.train_color_label))
+query_label = queryset.train_color_label
+gall_label = gallset.train_color_label
 nquery = len(query_label)
 ngall = len(gall_label)
 
@@ -301,7 +309,8 @@ def train(epoch):
 
     for batch_idx, (input1, input2, label1, label2) in enumerate(trainloader):
 
-        labels = torch.cat((label1, label2), 0)
+        #labels = torch.cat((label1, label2), 0)
+        labels = label1
         #这里改过
         input2 = torch.cat([input2, input2, input2], dim=1)
 
@@ -314,7 +323,9 @@ def train(epoch):
 
         feat, out0, = net(input1, input2)  #################rgb和红外的一起进去
     #####feat是得到概率之前的特征向量2048*1*1
-        loss_id = criterion_id(out0, labels)#####out0是为每一个人的概率。
+
+        ####train时的loss需要改吗
+        loss_id = criterion_id(out0, labels)#####计算交叉熵损失。out0是为每一个人的概率。
         loss_tri, batch_acc = criterion_tri(feat, labels)
         correct += (batch_acc / 2)
         _, predicted = out0.max(1)
@@ -361,15 +372,35 @@ def test(epoch):
     gall_feat = np.zeros((ngall, 2048))
     gall_feat_att = np.zeros((ngall, 2048))
     with torch.no_grad():
-        for batch_idx, (input, label) in enumerate(gall_loader):
-            batch_num = input.size(0)
-            ###这边gallery是深度的
-            input = torch.cat([input, input, input], dim=1)
-            input = Variable(input.cuda())
-            feat, feat_att = net(input, input, test_mode[0])########feat是特征，后面那个不知道啥
-            gall_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()
-            gall_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
-            ptr = ptr + batch_num
+        # for batch_idx, (input, label) in enumerate(gall_loader):
+        #     batch_num = input.size(0)
+        #     ###这边gallery是深度的
+        #     input = torch.cat([input, input, input], dim=1)
+        #     input = Variable(input.cuda())
+        #     feat, feat_att = net(input, input, test_mode[0])########feat是特征，后面那个不知道啥
+        for batch_idx, (input1, input2, label1, label2) in enumerate(gall_loader):
+            labels = torch.cat((label1, label2), 0)
+            # 这里改过
+            input2 = torch.cat([input2, input2, input2], dim=1)
+
+            input1 = Variable(input1.cuda())
+            input2 = Variable(input2.cuda())
+            batch_num = input1.size(0)####这是64
+            labels = Variable(labels.cuda())
+
+            feat, feat_att = net(input1, input2,0)
+
+            print("ptr:",ptr)
+            print("ptr+batch_num:",ptr+batch_num)
+            if ptr+batch_num<=ngall-1:
+                gall_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()####128*2048无法转换成64*2048，128是错的
+                gall_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
+                ptr = ptr + batch_num
+            else:
+                gall_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()[0:ngall-ptr,:]  ####128*2048无法转换成64*2048，128是错的
+                gall_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()[0:ngall-ptr,:]
+                ptr = ptr + batch_num
+                break
     print('Extracting Time:\t {:.3f}'.format(time.time() - start))
 
     # switch to evaluation
@@ -380,13 +411,30 @@ def test(epoch):
     query_feat = np.zeros((nquery, 2048))
     query_feat_att = np.zeros((nquery, 2048))
     with torch.no_grad():
-        for batch_idx, (input, label) in enumerate(query_loader):
-            batch_num = input.size(0)
-            input = Variable(input.cuda())
-            feat, feat_att = net(input, input, test_mode[1])
-            query_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()
-            query_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
-            ptr = ptr + batch_num
+        # for batch_idx, (input, label) in enumerate(query_loader):
+        #     batch_num = input.size(0)
+        #     input = Variable(input.cuda())
+        #     feat, feat_att = net(input, input, test_mode[1])
+        for batch_idx, (input1, input2, label1, label2) in enumerate(query_loader):
+            labels = torch.cat((label1, label2), 0)
+            # 这里改过
+            input2 = torch.cat([input2, input2, input2], dim=1)
+
+            input1 = Variable(input1.cuda())
+            input2 = Variable(input2.cuda())
+            batch_num = input1.size(0)
+            labels = Variable(labels.cuda())
+
+            feat, feat_att = net(input1, input2, 0)
+            if ptr + batch_num <= nquery - 1:
+                query_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()
+                query_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
+                ptr = ptr + batch_num
+            else:
+                query_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()[0:nquery-ptr,:]
+                query_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()[0:nquery-ptr,:]
+                ptr = ptr + batch_num
+                break
     print('Extracting Time:\t {:.3f}'.format(time.time() - start))
 
     start = time.time()
@@ -436,6 +484,29 @@ for epoch in range(start_epoch, 81 - start_epoch):
 
     trainloader = data.DataLoader(trainset, batch_size=loader_batch, \
                                   sampler=sampler, num_workers=args.workers, drop_last=True)
+
+##其他两个loader
+    sampler1 = IdentitySampler(gallset.train_color_label, \
+                              gallset.train_depth_label, color_pos_g, thermal_pos_g, args.num_pos, args.test_batch,
+                              epoch)
+
+    gallset.cIndex = sampler1.index1  # color index
+    gallset.dIndex = sampler1.index2  # depth index
+
+    gall_loader = data.DataLoader(gallset, batch_size=args.test_batch,shuffle=False, \
+                                  sampler=sampler1, num_workers=args.workers,drop_last=True)
+
+    sampler2 = IdentitySampler(queryset.train_color_label, \
+                               queryset.train_depth_label, color_pos_q, thermal_pos_q, args.num_pos, args.test_batch,
+                               epoch)
+
+    queryset.cIndex = sampler2.index1  # color index
+    queryset.dIndex = sampler2.index2  # depth index
+
+    query_loader = data.DataLoader(queryset, batch_size=args.test_batch,shuffle=False, \
+                                 sampler=sampler2, num_workers=args.workers,drop_last=True)
+
+
 
     # training
     train(epoch)
