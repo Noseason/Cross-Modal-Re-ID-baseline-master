@@ -205,9 +205,10 @@ elif dataset == 'tvpr2':
 gallset = TVPRData11(data_path, args.trial, transform1=transform_train,transform2 = transform_train2, type = 1)
 queryset = TVPRData11(data_path, args.trial, transform1=transform_train,transform2 = transform_train2, type = 2)
 print("third step")
-# testing data loader
-# gall_loader = data.DataLoader(gallset, batch_size=args.test_batch, shuffle=False, num_workers=args.workers)
-# query_loader = data.DataLoader(queryset, batch_size=args.test_batch, shuffle=False, num_workers=args.workers)
+#testing data loader
+gall_loader = data.DataLoader(gallset, batch_size=args.test_batch, shuffle=False, num_workers=args.workers)
+query_loader = data.DataLoader(queryset, batch_size=args.test_batch, shuffle=False, num_workers=args.workers)
+
 color_pos_g, thermal_pos_g = GenIdx(gallset.train_color_label, gallset.train_depth_label)
 color_pos_q, thermal_pos_q = GenIdx(queryset.train_color_label, queryset.train_depth_label)
 print("fourth step")
@@ -390,8 +391,8 @@ def test(epoch):
 
             feat, feat_att = net(input1, input2,0)
 
-            print("ptr:",ptr)
-            print("ptr+batch_num:",ptr+batch_num)
+            # print("ptr:",ptr)
+            # print("ptr+batch_num:",ptr+batch_num)
             if ptr+batch_num<=ngall-1:
                 gall_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()####128*2048无法转换成64*2048，128是错的
                 gall_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
@@ -475,10 +476,10 @@ for epoch in range(start_epoch, 81 - start_epoch):
                               epoch)
 
     trainset.cIndex = sampler.index1  # color index
-    trainset.dIndex = sampler.index2  # depth index
-    print(epoch)
-    print(trainset.cIndex)
-    print(trainset.dIndex)
+    trainset.dIndex = sampler.index1  # depth index
+    # print(epoch)
+    # print(trainset.cIndex)
+    # print(trainset.dIndex)
 
     loader_batch = args.batch_size * args.num_pos
 
@@ -486,25 +487,25 @@ for epoch in range(start_epoch, 81 - start_epoch):
                                   sampler=sampler, num_workers=args.workers, drop_last=True)
 
 ##其他两个loader
-    sampler1 = IdentitySampler(gallset.train_color_label, \
-                              gallset.train_depth_label, color_pos_g, thermal_pos_g, args.num_pos, args.test_batch,
-                              epoch)
-
-    gallset.cIndex = sampler1.index1  # color index
-    gallset.dIndex = sampler1.index2  # depth index
-
-    gall_loader = data.DataLoader(gallset, batch_size=args.test_batch,shuffle=False, \
-                                  sampler=sampler1, num_workers=args.workers,drop_last=True)
-
-    sampler2 = IdentitySampler(queryset.train_color_label, \
-                               queryset.train_depth_label, color_pos_q, thermal_pos_q, args.num_pos, args.test_batch,
-                               epoch)
-
-    queryset.cIndex = sampler2.index1  # color index
-    queryset.dIndex = sampler2.index2  # depth index
-
-    query_loader = data.DataLoader(queryset, batch_size=args.test_batch,shuffle=False, \
-                                 sampler=sampler2, num_workers=args.workers,drop_last=True)
+    # sampler1 = IdentitySampler(gallset.train_color_label, \
+    #                           gallset.train_depth_label, color_pos_g, thermal_pos_g, args.num_pos, args.test_batch,
+    #                           epoch)
+    #
+    # gallset.cIndex = sampler1.index1  # color index
+    # gallset.dIndex = sampler1.index2  # depth index
+    #
+    # gall_loader = data.DataLoader(gallset, batch_size=args.test_batch,shuffle=False, \
+    #                               sampler=sampler1, num_workers=args.workers,drop_last=True)
+    #
+    # sampler2 = IdentitySampler(queryset.train_color_label, \
+    #                            queryset.train_depth_label, color_pos_q, thermal_pos_q, args.num_pos, args.test_batch,
+    #                            epoch)
+    #
+    # queryset.cIndex = sampler2.index1  # color index
+    # queryset.dIndex = sampler2.index2  # depth index
+    #
+    # query_loader = data.DataLoader(queryset, batch_size=args.test_batch,shuffle=False, \
+    #                              sampler=sampler2, num_workers=args.workers,drop_last=True)
 
 
 

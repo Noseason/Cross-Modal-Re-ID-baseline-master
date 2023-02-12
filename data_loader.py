@@ -336,6 +336,7 @@ class TVPRData11(data.Dataset):##############新的，浪潮用
         query_depth_image = np.array(query_depth_image)
 
         print("fourth")
+        self.type = type
         if type == 0:
         # BGR to RGB
             self.train_color_image = train_color_image
@@ -365,11 +366,20 @@ class TVPRData11(data.Dataset):##############新的，浪潮用
         self.dIndex = depthIndex
 
     def __getitem__(self, index):
-
-        img1, target1 = self.train_color_image[self.cIndex[index]], self.train_color_label[self.cIndex[index]]
-        # print("index:", index)
-        # print("dIndexlen", len(self.dIndex))
-        img2, target2 = self.train_depth_image[self.dIndex[index]], self.train_depth_label[self.dIndex[index]]
+        img1 = None
+        img2 = None
+        target1 = None
+        target2 = None
+        if self.type == 0:
+            img1, target1 = self.train_color_image[self.cIndex[index]], self.train_color_label[self.cIndex[index]]
+            # print("index:", index)
+            # print("dIndexlen", len(self.dIndex))
+            img2, target2 = self.train_depth_image[self.dIndex[index]], self.train_depth_label[self.dIndex[index]]
+        elif self.type == 1 or self.type ==2:
+            img1, target1 = self.train_color_image[index], self.train_color_label[index]
+            # print("index:", index)
+            # print("dIndexlen", len(self.dIndex))
+            img2, target2 = self.train_depth_image[index], self.train_depth_label[index]
 
         img1 = self.transform1(img1)
         img2 = self.transform2(img2)
